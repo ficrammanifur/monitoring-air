@@ -16,27 +16,27 @@
         <div class="brand-mark" aria-hidden="true">≈</div>
         <div>
           <strong>AquaSense</strong>
-          <span>Water intelligence</span>
+          <span>Intelijen Air</span>
         </div>
         <button class="icon-button mobile-only" id="close-menu" aria-label="Tutup menu">×</button>
       </div>
 
       <nav class="nav">
-        <span class="nav-label">Workspace</span>
+        <span class="nav-label">Ruang Kerja</span>
         <button class="nav-item active" data-section="Overview">
-          <span>▦</span> Overview
+          <span>▦</span> Ringkasan
         </button>
         <button class="nav-item" data-section="Sensor analytics">
-          <span>⌁</span> Sensor analytics
+          <span>⌁</span> Analisis Sensor
         </button>
         <button class="nav-item" data-section="Alerts">
-          <span>◉</span> Alerts <b>2</b>
+          <span>◉</span> Peringatan <b>2</b>
         </button>
       </nav>
 
       <div class="sidebar-bottom">
         <button class="nav-item" data-section="Settings">
-          <span>⚙</span> Settings
+          <span>⚙</span> Pengaturan
         </button>
         <div class="profile">
           <div class="avatar">MI</div>
@@ -59,16 +59,16 @@
         <div class="topbar-title">
           <button class="icon-button mobile-only" id="open-menu" aria-label="Buka menu">☰</button>
           <div>
-            <span class="eyebrow">Wednesday, 13 August 2026</span>
-            <h1>Monitoring overview</h1>
+            <span class="eyebrow">Rabu, 13 Agustus 2026</span>
+            <h1>Ringkasan Monitoring</h1>
           </div>
         </div>
 
         <div class="connection-group">
           <span class="live-pill">
-            <i></i> Live data · 10s ago
+            <i></i> Data langsung · 10 detik lalu
           </span>
-          <span class="connection wifi" title="Wi-Fi tersambung">
+          <span class="connection wifi" title="Wi-Fi terhubung">
             <span>⌁</span><b>Wi-Fi</b><i></i>
           </span>
           <span class="connection mqtt" title="Broker MQTT terhubung">
@@ -83,11 +83,10 @@
         <!-- Intro -->
         <section class="intro">
           <div>
-            <span class="station-label">Station · Sungai Ciliwung / ST-042</span>
-            <h2>Kondisi air saat ini</h2>
-            <p>Pantau parameter kualitas air secara real-time dan pastikan setiap perubahan terdeteksi lebih awal.</p>
+            <h2>Kondisi Air Saat Ini</h2>
+            <p>Pantau parameter kualitas air secara langsung dan pastikan setiap perubahan terdeteksi lebih awal.</p>
           </div>
-          <button class="outline-button" id="configure">☷ Configure station</button>
+          <button class="outline-button" id="configure">☷ Konfigurasi Stasiun</button>
         </section>
 
         <!-- Summary Grid -->
@@ -95,31 +94,31 @@
           <article class="card summary-card">
             <div class="card-title">
               <span class="metric-icon teal">≈</span>
-              <span>Water quality</span>
-              <span class="status good">● Good</span>
+              <span>Kualitas Air</span>
+              <span class="status good">● Baik</span>
             </div>
             <strong class="big-value">Optimal</strong>
-            <span class="muted">All parameters within safe limits</span>
+            <span class="muted">Semua parameter dalam batas aman</span>
           </article>
 
           <article class="card summary-card">
             <div class="card-title">
               <span class="metric-icon blue">⌁</span>
-              <span>Sensors online</span>
+              <span>Sensor Online</span>
               <span class="online-dot">●</span>
             </div>
             <strong class="big-value">2 <small>/ 2</small></strong>
-            <span class="muted">Last synced 10 seconds ago</span>
+            <span class="muted">Sinkronisasi terakhir 10 detik lalu</span>
           </article>
 
           <article class="card summary-card">
             <div class="card-title">
               <span class="metric-icon amber">◉</span>
-              <span>Active alerts</span>
-              <span class="status warn">Needs review</span>
+              <span>Peringatan Aktif</span>
+              <span class="status warn">Perlu Tinjauan</span>
             </div>
             <strong class="big-value">2</strong>
-            <span class="muted">1 turbidity · 1 calibration</span>
+            <span class="muted">1 kekeruhan · 1 kalibrasi</span>
           </article>
         </section>
 
@@ -129,8 +128,8 @@
           <article class="card trends">
             <div class="section-head">
               <div>
-                <h3>Parameter trends</h3>
-                <span class="muted">Average readings from the last 24 hours</span>
+                <h3>Tren Parameter</h3>
+                <span class="muted">Rata-rata pembacaan dari 24 jam terakhir</span>
               </div>
               <div class="tabs">
                 <button class="tab active" data-range="Hari ini">Hari ini</button>
@@ -143,10 +142,10 @@
               <div class="trend">
                 <div class="trend-head">
                   <div>
-                    <span class="muted">pH level</span>
+                    <span class="muted">Tingkat pH</span>
                     <strong>7.42 <em>+0.03%</em></strong>
                   </div>
-                  <span class="safe teal-bg">Safe 6.5–8.5</span>
+                  <span class="safe teal-bg">Aman 6.5–8.5</span>
                 </div>
                 <div class="chart ph-chart" role="img" aria-label="Grafik tren pH">
                   <svg viewBox="0 0 520 130" preserveAspectRatio="none">
@@ -166,12 +165,12 @@
               <div class="trend">
                 <div class="trend-head">
                   <div>
-                    <span class="muted">Turbidity</span>
+                    <span class="muted">Kekeruhan</span>
                     <strong>1.8 <small>NTU</small></strong>
                   </div>
-                  <span class="safe blue-bg">Safe &lt; 5 NTU</span>
+                  <span class="safe blue-bg">Aman &lt; 5 NTU</span>
                 </div>
-                <div class="chart turb-chart" role="img" aria-label="Grafik tren turbidity">
+                <div class="chart turb-chart" role="img" aria-label="Grafik tren kekeruhan">
                   <svg viewBox="0 0 520 130" preserveAspectRatio="none">
                     <path d="M0 76 C25 73 40 82 62 75 S104 64 128 73 S163 78 190 66 S223 76 247 69 S280 43 307 59 S346 78 372 69 S406 57 433 63 S476 73 520 52 V130 H0 Z"/>
                     <path class="line" d="M0 76 C25 73 40 82 62 75 S104 64 128 73 S163 78 190 66 S223 76 247 69 S280 43 307 59 S346 78 372 69 S406 57 433 63 S476 73 520 52"/>
@@ -190,28 +189,28 @@
           <!-- Health Panel -->
           <article class="health-panel">
             <div>
-              <span class="muted light">Station health</span>
-              <h3>Everything is running smoothly</h3>
+              <span class="muted light">Kesehatan Stasiun</span>
+              <h3>Semua berjalan lancar</h3>
             </div>
             <span class="health-check">✓</span>
 
             <div class="health-meter">
               <div>
-                <span>Signal strength</span>
-                <strong>Excellent</strong>
+                <span>Kekuatan Sinyal</span>
+                <strong>Sangat Baik</strong>
               </div>
               <div class="meter"><i></i></div>
             </div>
 
             <div class="health-meter">
               <div>
-                <span>Battery level</span>
+                <span>Tingkat Baterai</span>
                 <strong>87%</strong>
               </div>
               <div class="meter battery"><i></i></div>
             </div>
 
-            <button class="light-button" id="refresh-status">Refresh status ↻</button>
+            <button class="light-button" id="refresh-status">Muat Ulang Status ↻</button>
           </article>
         </section>
 
@@ -219,29 +218,29 @@
         <section class="card alerts">
           <div class="section-head">
             <div>
-              <h3>Active alerts</h3>
-              <span class="muted">Review items that may need attention</span>
+              <h3>Peringatan Aktif</h3>
+              <span class="muted">Tinjau item yang memerlukan perhatian</span>
             </div>
-            <button class="text-button" id="view-alerts">View all alerts →</button>
+            <button class="text-button" id="view-alerts">Lihat semua peringatan →</button>
           </div>
 
           <div class="alert-list">
             <div class="alert-row">
               <span class="alert-icon amber">!</span>
               <div>
-                <strong>Elevated turbidity detected</strong>
-                <span class="muted">Turbidity reached 2.4 NTU at 13:45</span>
+                <strong>Kekeruhan meningkat terdeteksi</strong>
+                <span class="muted">Kekeruhan mencapai 2.4 NTU pada 13:45</span>
               </div>
-              <span class="status warn">Monitoring</span>
+              <span class="status warn">Dipantau</span>
             </div>
 
             <div class="alert-row">
               <span class="alert-icon blue">⌁</span>
               <div>
-                <strong>Calibration reminder</strong>
-                <span class="muted">pH sensor calibration is due in 4 days</span>
+                <strong>Pengingat kalibrasi</strong>
+                <span class="muted">Kalibrasi sensor pH jatuh tempo dalam 4 hari</span>
               </div>
-              <span class="status info">Scheduled</span>
+              <span class="status info">Terjadwal</span>
             </div>
           </div>
         </section>
@@ -250,20 +249,20 @@
         <section class="card readings">
           <div class="section-head">
             <div>
-              <h3>Recent readings</h3>
-              <span class="muted">Latest data collected from ST-042</span>
+              <h3>Pembacaan Terbaru</h3>
+              <span class="muted">Data terbaru yang dikumpulkan dari ST-042</span>
             </div>
-            <button class="text-button">View all readings →</button>
+            <button class="text-button">Lihat semua pembacaan →</button>
           </div>
 
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Time</th>
-                  <th>pH level</th>
-                  <th>Turbidity</th>
-                  <th>Temperature</th>
+                  <th>Waktu</th>
+                  <th>Tingkat pH</th>
+                  <th>Kekeruhan</th>
+                  <th>Suhu</th>
                   <th>Status</th>
                 </tr>
               </thead>
