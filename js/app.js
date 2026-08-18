@@ -27,34 +27,6 @@
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => document.querySelectorAll(selector);
 
-  const DOM = {
-    connDot: $('#connectionDot'),
-    connText: $('#connectionText'),
-    mqttBadge: $('#mqttBadge'),
-    espBadge: $('#espBadge'),
-    lastUpdate: $('#lastUpdate'),
-    dataCount: $('#dataCount'),
-    lastMessage: $('#lastMessage'),
-    waterStatusText: $('#waterStatusText'),
-    statusIconWrapper: $('#statusIconWrapper'),
-    statusDetail: $('#statusDetail'),
-    filterHealth: $('#filterHealth'),
-    healthBar: $('#healthBar'),
-    daysLeft: $('#daysLeft'),
-    volumeTotal: $('#volumeTotal'),
-    phValue: $('#phValue'),
-    turbidityValue: $('#turbidityValue'),
-    tempValue: $('#tempValue'),
-    phBadge: $('#phBadge'),
-    turbBadge: $('#turbBadge'),
-    tempBadge: $('#tempBadge'),
-    filterReplaceStatus: $('#filterReplaceStatus'),
-    filterReplaceScore: $('#filterReplaceScore'),
-    filterReplaceDays: $('#filterReplaceDays'),
-    filterReplaceReason: $('#filterReplaceReason'),
-    filterReplaceRecommend: $('#filterReplaceRecommend'),
-  };
-
   // ==================== STATE ====================
   const state = {
     mqttConnected: false,
@@ -67,19 +39,9 @@
     turbidityPercent: null,
     turbStatus: null,
     temperature: null,
-    status: null,
-    health: null,
-    daysLeft: null,
     isOnline: false,
     rssi: 0,
     ip: '--',
-    filterNeedReplacement: false,
-    filterReason: 'Normal',
-    filterRecommendation: 'Lanjutkan pemantauan',
-    filterScore: 100,
-    filterStatus: 'NORMAL',
-    filterStatusColor: 'GREEN',
-    filterStatusEmoji: '🟢',
   };
 
   // ==================== TOAST ====================
@@ -102,20 +64,216 @@
     }, 3000);
   };
 
-  // ==================== MQTT LOGIC - Menggunakan Paho MQTT ====================
+  // ==================== UPDATE UI FUNCTIONS ====================
+  function updatePH(value) {
+    // Update nilai pH di card
+    const phElements = document.querySelectorAll('.trend-head strong');
+    phElements.forEach((el) => {
+      const parent = el.closest('.trend');
+      if (parent && parent.querySelector('.trend-head .muted')?.textContent.includes('pH')) {
+        el.innerHTML = `${value.toFixed(2)} <em>${(Math.random() * 0.06 - 0.03).toFixed(2)}%</em>`;
+      }
+    });
+
+    // Update status pH aman/tidak
+    const phSafe = document.querySelector('.trend .safe.teal-bg');
+    if (phSafe) {
+      if (value >= 6.5 && value <= 8.5) {
+        phSafe.textContent = 'Aman 6.5–8.5';
+        phSafe.className = 'safe teal-bg';
+      } else {
+        phSafe.textContent = `⚠️ ${value.toFixed(2)}`;
+        phSafe.className = 'safe warn';
+      }
+    }
+
+    // Update pH di table
+    const firstRow = document.querySelector('tbody tr:first-child');
+    if (firstRow) {
+      const cells = firstRow.querySelectorAll('td');
+      if (cells.length >= 5) {
+        cells[1].textContent = value.toFixed(2);
+      }
+    }
+  }
+
+  function updateTurbidity(ntu, percent, status) {
+    // Update nilai turbidity di card
+    const turbElements = document.querySelectorAll('.trend-head strong');
+    turbElements.forEach((el) => {
+      const parent = el.closest('.trend');
+      if (parent && parent.querySelector('.trend-head .muted')?.textContent.includes('Kekeruhan')) {
+        el.innerHTML = `${ntu.toFixed(1)} <small>NTU</small>`;
+      }
+    });
+
+    // Update status turbidity
+    const turbStatusElement = document.querySelector('.trend-head .safe.blue-bg');
+    if (turbStatusElement) {
+      if (ntu < 5) {
+        turbStatusElement.textContent = `Aman < 5 NTU (${status || 'Jernih'})`;
+        turbStatusElement.className = 'safe blue-bg';
+      } else {
+        turbStatusElement.textContent = `⚠️ ${ntu.toFixed(1)} NTU`;
+        turbStatusElement.className = 'safe warn';
+      }
+    }
+
+    // Update turbidity di table
+    const firstRow = document.querySelector('tbody tr:first-child');
+    if (firstRow) {
+      const cells = firstRow.querySelectorAll('td');
+      if (cells.length >= 5) {
+        cells[2].innerHTML = `${ntu.toFixed(1)} <span>NTU</span>`;
+      }
+    }
+  }
+
+  function updateOverallStatus(ph, turbidity) {
+    const isLayak = ph !== null && ph >= 6.5 && ph <= 8.5 && 
+                    turbidity !== null && turbidity < 5;
+    
+    // Update status di card pertama
+    const qualityStatus = document.querySelector('.summary-card:first-child .status');
+    if (qualityStatus) {
+      qualityStatus.textContent = isLayak ? '● Baik' : '● Peringatan';
+      qualityStatus.className = `status ${isLayak ? 'good' : 'warn'}`;
+    }
+
+    const qualityValue = document.querySelector('.summary-card:first-child .big-value');
+    if (qualityValue) {
+      qualityValue.textContent = isLayak ? 'Optimal' : 'Perhatian';
+    }
+
+    const qualityDesc = document.querySelector('.summary-card:first-child .muted');
+    if (qualityDesc) {
+      if (isLayak) {
+        qualityDesc.textContent = 'Semua parameter dalam batas aman';
+      } else {
+        let reason = '';
+        if (ph !== null && (ph < 6.5 || ph > 8.5)) {
+          reason = `pH ${ph.toFixed(2)} ${ph < 6.5 ? '(Asam)' : '(Basa)'}`;
+        } else if (turbidity !== null && turbidity >= 5) {
+          reason = `Kekeruhan ${turbidity.toFixed(1)} NTU (Tinggi)`;
+        }
+        qualityDesc.textContent = reason;
+      }
+    }
+
+    // Update status di table
+    const firstRow = document.querySelector('tbody tr:first-child');
+    if (firstRow) {
+      const cells = firstRow.querySelectorAll('td');
+      if (cells.length >= 5) {
+        const statusCell = cells[4];
+        statusCell.innerHTML = isLayak 
+          ? '<b class="status good">Normal</b>' 
+          : '<b class="status warn">Perhatian</b>';
+      }
+    }
+  }
+
+  function updateSensorOnline(isOnline) {
+    const sensorsValue = document.querySelector('.summary-card:nth-child(2) .big-value');
+    if (sensorsValue) {
+      sensorsValue.innerHTML = isOnline ? '2 <small>/ 2</small>' : '0 <small>/ 2</small>';
+    }
+
+    const onlineDot = document.querySelector('.summary-card:nth-child(2) .online-dot');
+    if (onlineDot) {
+      onlineDot.style.color = isOnline ? '#2ecc71' : '#e74c3c';
+    }
+
+    // Update Wi-Fi indicator
+    const wifiIndicator = document.querySelector('.connection.wifi');
+    if (wifiIndicator) {
+      if (isOnline) {
+        wifiIndicator.style.borderColor = '#bfe6d3';
+        wifiIndicator.style.background = '#f0fbf5';
+        wifiIndicator.title = 'Wi-Fi terhubung';
+      } else {
+        wifiIndicator.style.borderColor = '#f5c6cb';
+        wifiIndicator.style.background = '#fdf0f0';
+        wifiIndicator.title = 'Wi-Fi terputus';
+      }
+    }
+
+    // Update ESP badge
+    const espBadge = document.querySelector('.connection.esp');
+    if (espBadge) {
+      if (isOnline) {
+        espBadge.style.borderColor = '#bfe6d3';
+        espBadge.style.background = '#f0fbf5';
+        espBadge.title = 'ESP32 Online';
+      } else {
+        espBadge.style.borderColor = '#f5c6cb';
+        espBadge.style.background = '#fdf0f0';
+        espBadge.title = 'ESP32 Offline';
+      }
+    }
+  }
+
+  function updateLiveIndicator() {
+    const time = new Date();
+    $$('.live-pill').forEach((pill) => {
+      const text = state.lastUpdateTime 
+        ? `Data langsung · ${time.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`
+        : '⏳ Menunggu data...';
+      pill.innerHTML = `<i></i> ${text}`;
+    });
+  }
+
+  // ==================== MAIN UPDATE FUNCTION ====================
+  function updateDashboard() {
+    console.log('🔄 Updating dashboard with:', {
+      ph: state.ph,
+      turbidity: state.turbidity,
+      turbStatus: state.turbStatus,
+      isOnline: state.isOnline
+    });
+
+    // Update semua komponen
+    if (state.ph !== null) {
+      updatePH(state.ph);
+    }
+
+    if (state.turbidity !== null) {
+      updateTurbidity(state.turbidity, state.turbidityPercent, state.turbStatus);
+    }
+
+    if (state.ph !== null && state.turbidity !== null) {
+      updateOverallStatus(state.ph, state.turbidity);
+    }
+
+    updateSensorOnline(state.isOnline);
+    updateLiveIndicator();
+
+    // Update timestamp
+    const lastUpdate = document.getElementById('lastUpdate');
+    if (lastUpdate && state.lastUpdateTime) {
+      lastUpdate.textContent = state.lastUpdateTime.toLocaleTimeString();
+    }
+
+    const dataCount = document.getElementById('dataCount');
+    if (dataCount) {
+      dataCount.textContent = state.messageCount;
+    }
+
+    console.log('✅ Dashboard updated');
+  }
+
+  // ==================== MQTT LOGIC ====================
   function initMQTT() {
     console.log('🔄 Connecting to MQTT via WebSocket...');
     updateConnectionUI('connecting', 'Menghubungkan...');
     
     try {
-      // Cek apakah Paho tersedia
       if (typeof Paho === 'undefined') {
         console.error('❌ Paho MQTT library tidak ditemukan!');
         showToast('❌ Library MQTT tidak ditemukan', 'error');
         return;
       }
 
-      // Gunakan Paho.MQTT.Client untuk WebSocket
       const Client = Paho.MQTT.Client;
       
       if (!Client) {
@@ -124,18 +282,15 @@
         return;
       }
 
-      // Buat client dengan WebSocket
       client = new Client(
         'broker.hivemq.com',
         8884,
         'aquasense_' + Math.random().toString(16).substr(2, 8)
       );
 
-      // Set callback
       client.onConnectionLost = onConnectionLost;
       client.onMessageArrived = onMessageArrived;
 
-      // Connect
       client.connect({
         onSuccess: onConnect,
         onFailure: onConnectFailure,
@@ -155,7 +310,14 @@
     console.log('✅ Connected to MQTT Broker');
     state.mqttConnected = true;
     updateConnectionUI('connected', 'Broker Terhubung');
-    if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge active';
+    
+    const mqttBadge = document.querySelector('.connection.mqtt');
+    if (mqttBadge) {
+      mqttBadge.style.borderColor = '#b9dced';
+      mqttBadge.style.background = '#f0f8fc';
+      mqttBadge.title = 'Broker MQTT terhubung';
+    }
+    
     showToast('📡 MQTT broker terhubung', 'success');
     
     // Subscribe ke semua topics
@@ -170,21 +332,17 @@
     console.error('❌ MQTT Connection Failed:', error);
     state.mqttConnected = false;
     updateConnectionUI('disconnected', 'Gagal Koneksi');
-    if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge inactive';
     showToast('❌ Gagal koneksi MQTT', 'error');
-    
     setTimeout(initMQTT, 10000);
   }
 
   function onConnectionLost(response) {
     console.log('🔌 MQTT Connection Lost:', response);
     state.mqttConnected = false;
-    state.espOnline = false;
+    state.isOnline = false;
     updateConnectionUI('disconnected', 'Terputus');
-    if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge inactive';
-    if (DOM.espBadge) DOM.espBadge.className = 'badge inactive';
     showToast('⚠️ Koneksi MQTT terputus', 'warning');
-    
+    updateSensorOnline(false);
     setTimeout(initMQTT, 5000);
   }
 
@@ -192,12 +350,15 @@
     const topic = message.destinationName;
     const payload = message.payloadString;
     
-    console.log(`📥 Message on ${topic}:`, payload);
+    console.log(`📥 [${topic}] => ${payload}`);
     
     try {
       switch(topic) {
         case MQTT_CONFIG.topics.ph:
           state.ph = parseFloat(payload);
+          state.lastUpdateTime = new Date();
+          state.messageCount++;
+          updateDashboard();
           break;
         
         case MQTT_CONFIG.topics.turbidity:
@@ -205,6 +366,9 @@
           state.turbidity = parseFloat(turbData.ntu);
           state.turbidityPercent = parseFloat(turbData.percent);
           state.turbStatus = turbData.status;
+          state.lastUpdateTime = new Date();
+          state.messageCount++;
+          updateDashboard();
           break;
         
         case MQTT_CONFIG.topics.status:
@@ -212,16 +376,21 @@
           state.isOnline = statusData.status === 'online';
           state.rssi = statusData.rssi || 0;
           state.ip = statusData.ip || '--';
-          state.espOnline = state.isOnline;
+          state.lastUpdateTime = new Date();
+          state.messageCount++;
+          updateSensorOnline(state.isOnline);
+          updateLiveIndicator();
+          console.log(`📡 ESP32 Status: ${statusData.status} | IP: ${statusData.ip} | RSSI: ${statusData.rssi}dBm`);
           break;
       }
       
-      state.lastUpdateTime = new Date();
-      state.messageCount++;
-      state.espOnline = true;
-      
-      if (DOM.espBadge) DOM.espBadge.className = 'badge active';
-      updateUI();
+      // Update ESP badge
+      const espBadge = document.querySelector('.connection.esp');
+      if (espBadge && state.isOnline) {
+        espBadge.style.borderColor = '#bfe6d3';
+        espBadge.style.background = '#f0fbf5';
+        espBadge.title = `ESP32 Online (${state.ip})`;
+      }
       
     } catch (error) {
       console.error('❌ Error parsing MQTT payload:', error);
@@ -229,219 +398,18 @@
   }
 
   function updateConnectionUI(status, text) {
-    if (DOM.connText) DOM.connText.textContent = text;
-    if (DOM.connDot) {
-      DOM.connDot.className = `dot ${status === 'connected' ? 'connected' : status === 'connecting' ? 'connecting' : 'disconnected'}`;
+    const connText = document.getElementById('connectionText');
+    const connDot = document.getElementById('connectionDot');
+    
+    if (connText) connText.textContent = text;
+    if (connDot) {
+      connDot.className = `dot ${status === 'connected' ? 'connected' : status === 'connecting' ? 'connecting' : 'disconnected'}`;
     }
   }
-
-  // ==================== UI UPDATES ====================
-  function updateUI() {
-    console.log('🔄 Updating UI...');
-    
-    // 1. Update timestamp
-    if (state.lastUpdateTime && DOM.lastUpdate) {
-      DOM.lastUpdate.textContent = state.lastUpdateTime.toLocaleTimeString();
-    }
-    if (DOM.dataCount) {
-      DOM.dataCount.textContent = state.messageCount;
-    }
-    
-    // 2. Update Status
-    const isLayak = state.ph !== null && state.ph >= 6.5 && state.ph <= 8.5 && 
-                    state.turbidity !== null && state.turbidity < 5;
-    
-    if (DOM.waterStatusText) {
-      DOM.waterStatusText.textContent = isLayak ? 'LAYAK' : 'TIDAK LAYAK';
-      DOM.waterStatusText.className = isLayak ? 'good-text' : 'bad-text';
-    }
-    
-    if (DOM.statusIconWrapper) {
-      if (isLayak) {
-        DOM.statusIconWrapper.className = 'status-icon-wrapper good';
-        DOM.statusIconWrapper.innerHTML = '<i class="fa-solid fa-check"></i>';
-        if (DOM.statusDetail) DOM.statusDetail.textContent = 'Air aman untuk dikonsumsi';
-      } else {
-        DOM.statusIconWrapper.className = 'status-icon-wrapper bad';
-        DOM.statusIconWrapper.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
-        let reason = '';
-        if (state.ph !== null && (state.ph < 6.5 || state.ph > 8.5)) {
-          reason = `pH ${state.ph.toFixed(2)} ${state.ph < 6.5 ? '(Asam)' : '(Basa)'}`;
-        } else if (state.turbidity !== null && state.turbidity >= 5) {
-          reason = `Kekeruhan ${state.turbidity.toFixed(1)} NTU (Tinggi)`;
-        }
-        if (DOM.statusDetail) DOM.statusDetail.textContent = `Air tidak layak: ${reason}`;
-      }
-    }
-    
-    // 3. Update Sensors
-    if (state.ph !== null && DOM.phValue) {
-      DOM.phValue.textContent = state.ph.toFixed(2);
-      updateParamBadge(DOM.phBadge, state.ph, 6.5, 8.5, 'Aman', 'Waspada', 'Bahaya');
-    }
-    
-    if (state.turbidity !== null && DOM.turbidityValue) {
-      DOM.turbidityValue.textContent = state.turbidity.toFixed(2);
-      updateParamBadge(DOM.turbBadge, state.turbidity, 0, 5, 'Jernih', 'Keruh', 'Sangat Keruh', true);
-    }
-    
-    // 4. Update Filter Health
-    if (state.health !== null && DOM.filterHealth) {
-      const health = state.health;
-      DOM.filterHealth.textContent = `${Math.round(health)}%`;
-      if (DOM.healthBar) {
-        DOM.healthBar.style.width = `${Math.min(health, 100)}%`;
-        if (health > 70) {
-          DOM.healthBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
-        } else if (health > 40) {
-          DOM.healthBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
-        } else {
-          DOM.healthBar.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
-        }
-      }
-    }
-    
-    if (state.daysLeft !== null && DOM.daysLeft) {
-      DOM.daysLeft.textContent = `${state.daysLeft} hari`;
-    }
-    
-    // 5. Update Filter Replacement Status
-    updateFilterReplacement();
-    
-    // 6. Update Online Status
-    if (DOM.espBadge) {
-      DOM.espBadge.className = state.espOnline ? 'badge active' : 'badge inactive';
-    }
-    
-    // Update Wi-Fi indicator
-    const wifiIndicator = document.querySelector('.connection.wifi');
-    if (wifiIndicator) {
-      if (state.isOnline) {
-        wifiIndicator.style.borderColor = '#bfe6d3';
-        wifiIndicator.style.background = '#f0fbf5';
-        wifiIndicator.title = 'Wi-Fi terhubung';
-      } else {
-        wifiIndicator.style.borderColor = '#f5c6cb';
-        wifiIndicator.style.background = '#fdf0f0';
-        wifiIndicator.title = 'Wi-Fi terputus';
-      }
-    }
-    
-    console.log('✅ UI Update complete');
-  }
-
-  // ==================== FILTER REPLACEMENT ====================
-  function updateFilterReplacement() {
-    const filterScore = state.health || state.filterScore || 100;
-    
-    let statusText = 'NORMAL';
-    let statusColor = 'GREEN';
-    let statusEmoji = '🟢';
-    
-    if (filterScore < 40) {
-      statusText = 'GANTI';
-      statusColor = 'RED';
-      statusEmoji = '🔴';
-    } else if (filterScore < 70) {
-      statusText = 'CEK';
-      statusColor = 'YELLOW';
-      statusEmoji = '🟡';
-    }
-    
-    let ledClass = statusColor === 'GREEN' ? 'led-green' : statusColor === 'YELLOW' ? 'led-yellow' : 'led-red';
-    let textClass = statusColor === 'GREEN' ? 'text-filter-normal' : statusColor === 'YELLOW' ? 'text-filter-check' : 'text-filter-replace';
-    
-    if (DOM.filterReplaceStatus) {
-      DOM.filterReplaceStatus.innerHTML = `
-        <span class="status-led ${ledClass}"></span>
-        <span class="${textClass}">${statusEmoji} ${statusText}</span>
-        <span class="text-xs text-white/40 ml-1">(${filterScore.toFixed(0)}%)</span>
-      `;
-    }
-    
-    if (DOM.filterReplaceScore) {
-      DOM.filterReplaceScore.textContent = filterScore.toFixed(0) + '%';
-      DOM.filterReplaceScore.className = `text-sm font-mono font-bold ${
-        filterScore < 40 ? 'text-[#FF2A54]' : filterScore < 70 ? 'text-[#FFD700]' : 'text-[#00FF66]'
-      }`;
-    }
-    
-    if (DOM.filterReplaceDays) {
-      const days = state.daysLeft || 0;
-      if (days > 0) {
-        DOM.filterReplaceDays.textContent = days + ' hari';
-        DOM.filterReplaceDays.className = 'text-sm font-mono text-white';
-      } else {
-        DOM.filterReplaceDays.textContent = '⚠️ Segera!';
-        DOM.filterReplaceDays.className = 'text-sm font-mono text-[#FF2A54] font-bold';
-      }
-    }
-    
-    if (DOM.filterReplaceReason) {
-      DOM.filterReplaceReason.textContent = state.filterReason || 'Normal';
-    }
-    
-    if (DOM.filterReplaceRecommend) {
-      DOM.filterReplaceRecommend.textContent = state.filterRecommendation || 'Lanjutkan pemantauan';
-    }
-  }
-
-  // ==================== BADGE HELPER ====================
-  function updateParamBadge(element, value, minSafe, maxSafe, safeLabel, warnLabel, dangerLabel, isLowerBetter = false) {
-    if (!element) return;
-    
-    if (value === null || value === undefined) {
-      element.textContent = '--';
-      element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 text-white/40 border border-white/10 uppercase tracking-wider';
-      return;
-    }
-    
-    let className = '';
-    let label = '';
-    
-    if (isLowerBetter) {
-      if (value <= maxSafe) {
-        label = safeLabel;
-        className = 'bg-[#00FF66]/15 text-[#00FF66] border-[#00FF66]/30';
-      } else if (value <= maxSafe * 2) {
-        label = warnLabel;
-        className = 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
-      } else {
-        label = dangerLabel;
-        className = 'bg-[#FF2A54]/15 text-[#FF2A54] border-[#FF2A54]/30 animate-pulse';
-      }
-    } else {
-      if (value >= minSafe && value <= maxSafe) {
-        label = safeLabel;
-        className = 'bg-[#00FF66]/15 text-[#00FF66] border-[#00FF66]/30';
-      } else if (value < minSafe - 1 || value > maxSafe + 1) {
-        label = dangerLabel;
-        className = 'bg-[#FF2A54]/15 text-[#FF2A54] border-[#FF2A54]/30 animate-pulse';
-      } else {
-        label = warnLabel;
-        className = 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
-      }
-    }
-    
-    element.textContent = label;
-    element.className = `inline-block px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${className}`;
-  }
-
-  // ==================== AUTO-RECONNECT ====================
-  setInterval(() => {
-    if (state.lastUpdateTime) {
-      const now = new Date();
-      const diff = (now - state.lastUpdateTime) / 1000;
-      if (diff > 15 && state.espOnline) {
-        state.espOnline = false;
-        if (DOM.espBadge) DOM.espBadge.className = 'badge inactive';
-      }
-    }
-  }, 5000);
 
   // ==================== SIDEBAR NAVIGATION ====================
-  const sidebar = $('#sidebar');
-  const scrim = $('#scrim');
+  const sidebar = document.getElementById('sidebar');
+  const scrim = document.getElementById('scrim');
 
   const closeMenu = () => {
     sidebar?.classList.remove('open');
@@ -453,36 +421,36 @@
     scrim?.classList.add('show');
   };
 
-  $('#open-menu')?.addEventListener('click', openMenu);
-  $('#close-menu')?.addEventListener('click', closeMenu);
+  document.getElementById('open-menu')?.addEventListener('click', openMenu);
+  document.getElementById('close-menu')?.addEventListener('click', closeMenu);
   scrim?.addEventListener('click', closeMenu);
 
-  $$('.nav-item').forEach((item) => {
+  document.querySelectorAll('.nav-item').forEach((item) => {
     item.addEventListener('click', () => {
-      $$('.nav-item').forEach((nav) => nav.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach((nav) => nav.classList.remove('active'));
       item.classList.add('active');
       closeMenu();
     });
   });
 
   // ==================== TABS ====================
-  $$('.tab').forEach((tab) => {
+  document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      $$('.tab').forEach((btn) => btn.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach((btn) => btn.classList.remove('active'));
       tab.classList.add('active');
     });
   });
 
   // ==================== BUTTON INTERACTIONS ====================
-  $('#configure')?.addEventListener('click', () => {
+  document.getElementById('configure')?.addEventListener('click', () => {
     showToast('⚙️ Konfigurasi stasiun', 'info');
   });
 
-  $('#view-alerts')?.addEventListener('click', () => {
+  document.getElementById('view-alerts')?.addEventListener('click', () => {
     showToast('🔔 Menampilkan peringatan aktif', 'info');
   });
 
-  $('#refresh-status')?.addEventListener('click', (event) => {
+  document.getElementById('refresh-status')?.addEventListener('click', (event) => {
     const button = event.currentTarget;
     const originalText = button.textContent;
 
@@ -516,7 +484,9 @@
     console.log('   - ulum/ph (pH value)');
     console.log('   - ulum/turb (Turbidity data)');
     console.log('   - ulum/status (ESP32 status)');
-    console.log('ℹ️ Ketik "debug" di console untuk akses state');
+    console.log('');
+    console.log('📊 Menunggu data dari ESP32...');
+    console.log('💡 Pastikan ESP32 sudah terhubung ke WiFi dan MQTT');
     
     initMQTT();
   });
@@ -526,7 +496,8 @@
     state: state,
     client: client,
     MQTT_CONFIG: MQTT_CONFIG,
-    initMQTT: initMQTT
+    initMQTT: initMQTT,
+    updateDashboard: updateDashboard
   };
 
   console.log('🔧 Debug: Type "debug" in console to see state');
