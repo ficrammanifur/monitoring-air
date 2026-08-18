@@ -1,6 +1,6 @@
 /**
  * AquaSense - Dashboard Monitoring Air
- * Terintegrasi dengan ESP32 via MQTT
+ * Terintegrasi dengan ESP32 via MQTT WebSocket
  * Topics: ulum/ph, ulum/turb, ulum/status
  * 
  * @version 2.0.0
@@ -28,7 +28,6 @@
   const $$ = (selector) => document.querySelectorAll(selector);
 
   const DOM = {
-    // Connection
     connDot: $('#connectionDot'),
     connText: $('#connectionText'),
     mqttBadge: $('#mqttBadge'),
@@ -36,29 +35,19 @@
     lastUpdate: $('#lastUpdate'),
     dataCount: $('#dataCount'),
     lastMessage: $('#lastMessage'),
-    
-    // Status
     waterStatusText: $('#waterStatusText'),
     statusIconWrapper: $('#statusIconWrapper'),
     statusDetail: $('#statusDetail'),
-    
-    // Filter
     filterHealth: $('#filterHealth'),
     healthBar: $('#healthBar'),
     daysLeft: $('#daysLeft'),
     volumeTotal: $('#volumeTotal'),
-    
-    // Sensors
     phValue: $('#phValue'),
-    tdsValue: $('#tdsValue'),
     turbidityValue: $('#turbidityValue'),
     tempValue: $('#tempValue'),
     phBadge: $('#phBadge'),
-    tdsBadge: $('#tdsBadge'),
     turbBadge: $('#turbBadge'),
     tempBadge: $('#tempBadge'),
-    
-    // Filter Replacement
     filterReplaceStatus: $('#filterReplaceStatus'),
     filterReplaceScore: $('#filterReplaceScore'),
     filterReplaceDays: $('#filterReplaceDays'),
@@ -68,7 +57,6 @@
 
   // ==================== STATE ====================
   const state = {
-    connected: false,
     mqttConnected: false,
     espOnline: false,
     messageCount: 0,
@@ -82,7 +70,6 @@
     status: null,
     health: null,
     daysLeft: null,
-    volume: null,
     isOnline: false,
     rssi: 0,
     ip: '--',
@@ -93,7 +80,6 @@
     filterStatus: 'NORMAL',
     filterStatusColor: 'GREEN',
     filterStatusEmoji: '🟢',
-    phWarning: false,
   };
 
   // ==================== TOAST ====================
@@ -116,260 +102,129 @@
     }, 3000);
   };
 
-  // ==================== CHARTS ====================
-  let charts = {
-    ph: null,
-    turbidity: null,
-    labels: [],
-    phData: [],
-    turbidityData: [],
-    maxPoints: 20
-  };
-
-  function initCharts() {
-    // pH Chart
-    const phCtx = document.getElementById('phChart');
-    if (phCtx) {
-      const ctx = phCtx.getContext('2d');
-      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-      gradient.addColorStop(0, 'rgba(0, 240, 255, 0.4)');
-      gradient.addColorStop(1, 'rgba(0, 240, 255, 0.0)');
-
-      charts.ph = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: charts.labels,
-          datasets: [{
-            data: charts.phData,
-            borderColor: '#00F0FF',
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-              backgroundColor: 'rgba(6,19,37,0.9)',
-              titleColor: '#fff',
-              bodyColor: '#00F0FF',
-              borderColor: 'rgba(255,255,255,0.1)',
-              borderWidth: 1,
-              padding: 10,
-            }
-          },
-          scales: {
-            x: { 
-              grid: { display: false }, 
-              ticks: { maxTicksLimit: 6, color: 'rgba(255,255,255,0.3)' } 
-            },
-            y: { 
-              min: 0, 
-              max: 14, 
-              grid: { color: 'rgba(255,255,255,0.05)' }, 
-              ticks: { color: 'rgba(255,255,255,0.3)' } 
-            }
-          }
-        }
-      });
-    }
-
-    // Turbidity Chart
-    const turbCtx = document.getElementById('turbidityChart');
-    if (turbCtx) {
-      const ctx = turbCtx.getContext('2d');
-      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-      gradient.addColorStop(0, 'rgba(0, 255, 102, 0.4)');
-      gradient.addColorStop(1, 'rgba(0, 255, 102, 0.0)');
-
-      charts.turbidity = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: charts.labels,
-          datasets: [{
-            data: charts.turbidityData,
-            borderColor: '#00FF66',
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-              backgroundColor: 'rgba(6,19,37,0.9)',
-              titleColor: '#fff',
-              bodyColor: '#00FF66',
-              borderColor: 'rgba(255,255,255,0.1)',
-              borderWidth: 1,
-              padding: 10,
-            }
-          },
-          scales: {
-            x: { 
-              grid: { display: false }, 
-              ticks: { maxTicksLimit: 6, color: 'rgba(255,255,255,0.3)' } 
-            },
-            y: { 
-              min: 0, 
-              max: 10, 
-              grid: { color: 'rgba(255,255,255,0.05)' }, 
-              ticks: { color: 'rgba(255,255,255,0.3)' } 
-            }
-          }
-        }
-      });
-    }
-  }
-
-  function updateCharts(ph, turbidity) {
-    const now = new Date();
-    const label = now.getHours().toString().padStart(2, '0') + ':' + 
-                  now.getMinutes().toString().padStart(2, '0');
-
-    if (ph !== null && ph !== undefined) {
-      charts.labels.push(label);
-      charts.phData.push(ph);
-      if (charts.labels.length > charts.maxPoints) {
-        charts.labels.shift();
-        charts.phData.shift();
-      }
-      if (charts.ph) {
-        charts.ph.data.labels = charts.labels;
-        charts.ph.data.datasets[0].data = charts.phData;
-        charts.ph.update('none');
-      }
-    }
-
-    if (turbidity !== null && turbidity !== undefined) {
-      charts.turbidityData.push(turbidity);
-      if (charts.turbidityData.length > charts.maxPoints) {
-        charts.turbidityData.shift();
-      }
-      if (charts.turbidity) {
-        charts.turbidity.data.labels = charts.labels;
-        charts.turbidity.data.datasets[0].data = charts.turbidityData;
-        charts.turbidity.update('none');
-      }
-    }
-  }
-
-  // ==================== MQTT LOGIC ====================
+  // ==================== MQTT LOGIC - Menggunakan Paho MQTT ====================
   function initMQTT() {
-    console.log('🔄 Connecting to MQTT...');
+    console.log('🔄 Connecting to MQTT via WebSocket...');
     updateConnectionUI('connecting', 'Menghubungkan...');
     
     try {
-      client = mqtt.connect(MQTT_CONFIG.broker, {
-        clientId: 'aquasense_' + Math.random().toString(16).substr(2, 8),
-        reconnectPeriod: 3000,
-        keepAlive: 60,
-        clean: true
-      });
+      // Cek apakah Paho tersedia
+      if (typeof Paho === 'undefined') {
+        console.error('❌ Paho MQTT library tidak ditemukan!');
+        showToast('❌ Library MQTT tidak ditemukan', 'error');
+        return;
+      }
 
-      client.on('connect', () => {
-        console.log('✅ Connected to MQTT Broker');
-        state.mqttConnected = true;
-        updateConnectionUI('connected', 'Broker Terhubung');
-        if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge active';
-        showToast('📡 MQTT broker terhubung', 'success');
-        
-        // Subscribe ke semua topics
-        const topics = Object.values(MQTT_CONFIG.topics);
-        topics.forEach(topic => {
-          client.subscribe(topic, { qos: 1 }, (err) => {
-            if (!err) {
-              console.log('✅ Subscribed to:', topic);
-            } else {
-              console.error('❌ Subscribe error:', err);
-            }
-          });
-        });
-      });
+      // Gunakan Paho.MQTT.Client untuk WebSocket
+      const Client = Paho.MQTT.Client;
+      
+      if (!Client) {
+        console.error('❌ Paho.MQTT.Client tidak ditemukan');
+        showToast('❌ Paho Client tidak ditemukan', 'error');
+        return;
+      }
 
-      client.on('message', (topic, message) => {
-        console.log(`📥 Message on ${topic}:`, message.toString());
-        
-        try {
-          const payload = message.toString();
-          
-          // Parse berdasarkan topic
-          switch(topic) {
-            case MQTT_CONFIG.topics.ph:
-              state.ph = parseFloat(payload);
-              break;
-            
-            case MQTT_CONFIG.topics.turbidity:
-              const turbData = JSON.parse(payload);
-              state.turbidity = parseFloat(turbData.ntu);
-              state.turbidityPercent = parseFloat(turbData.percent);
-              state.turbStatus = turbData.status;
-              break;
-            
-            case MQTT_CONFIG.topics.status:
-              const statusData = JSON.parse(payload);
-              state.isOnline = statusData.status === 'online';
-              state.rssi = statusData.rssi || 0;
-              state.ip = statusData.ip || '--';
-              state.espOnline = state.isOnline;
-              break;
-          }
-          
-          state.lastUpdateTime = new Date();
-          state.messageCount++;
-          state.espOnline = true;
-          
-          if (DOM.espBadge) DOM.espBadge.className = 'badge active';
-          updateUI();
-          
-        } catch (error) {
-          console.error('❌ Error parsing MQTT payload:', error);
-        }
-      });
+      // Buat client dengan WebSocket
+      client = new Client(
+        'broker.hivemq.com',
+        8884,
+        'aquasense_' + Math.random().toString(16).substr(2, 8)
+      );
 
-      client.on('error', (error) => {
-        console.error('❌ MQTT Error:', error);
-        state.mqttConnected = false;
-        updateConnectionUI('disconnected', 'Error Koneksi');
-        if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge inactive';
-        if (DOM.espBadge) DOM.espBadge.className = 'badge inactive';
-        showToast('❌ Error MQTT', 'error');
-      });
+      // Set callback
+      client.onConnectionLost = onConnectionLost;
+      client.onMessageArrived = onMessageArrived;
 
-      client.on('offline', () => {
-        console.log('⚠️ MQTT Offline');
-        state.mqttConnected = false;
-        state.espOnline = false;
-        updateConnectionUI('disconnected', 'Offline');
-        if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge inactive';
-        if (DOM.espBadge) DOM.espBadge.className = 'badge inactive';
-      });
-
-      client.on('reconnect', () => {
-        console.log('🔄 MQTT Reconnecting...');
-        showToast('🔄 Mencoba reconnect...', 'warning');
+      // Connect
+      client.connect({
+        onSuccess: onConnect,
+        onFailure: onConnectFailure,
+        timeout: 10,
+        keepAliveInterval: 30,
+        useSSL: true
       });
 
     } catch (e) {
       console.error('❌ Connection error:', e);
-      showToast('❌ Gagal koneksi MQTT', 'error');
+      showToast('❌ Gagal koneksi MQTT: ' + e.message, 'error');
       setTimeout(initMQTT, 5000);
+    }
+  }
+
+  function onConnect() {
+    console.log('✅ Connected to MQTT Broker');
+    state.mqttConnected = true;
+    updateConnectionUI('connected', 'Broker Terhubung');
+    if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge active';
+    showToast('📡 MQTT broker terhubung', 'success');
+    
+    // Subscribe ke semua topics
+    const topics = Object.values(MQTT_CONFIG.topics);
+    topics.forEach(topic => {
+      client.subscribe(topic, { qos: 1 });
+      console.log('✅ Subscribed to:', topic);
+    });
+  }
+
+  function onConnectFailure(error) {
+    console.error('❌ MQTT Connection Failed:', error);
+    state.mqttConnected = false;
+    updateConnectionUI('disconnected', 'Gagal Koneksi');
+    if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge inactive';
+    showToast('❌ Gagal koneksi MQTT', 'error');
+    
+    setTimeout(initMQTT, 10000);
+  }
+
+  function onConnectionLost(response) {
+    console.log('🔌 MQTT Connection Lost:', response);
+    state.mqttConnected = false;
+    state.espOnline = false;
+    updateConnectionUI('disconnected', 'Terputus');
+    if (DOM.mqttBadge) DOM.mqttBadge.className = 'badge inactive';
+    if (DOM.espBadge) DOM.espBadge.className = 'badge inactive';
+    showToast('⚠️ Koneksi MQTT terputus', 'warning');
+    
+    setTimeout(initMQTT, 5000);
+  }
+
+  function onMessageArrived(message) {
+    const topic = message.destinationName;
+    const payload = message.payloadString;
+    
+    console.log(`📥 Message on ${topic}:`, payload);
+    
+    try {
+      switch(topic) {
+        case MQTT_CONFIG.topics.ph:
+          state.ph = parseFloat(payload);
+          break;
+        
+        case MQTT_CONFIG.topics.turbidity:
+          const turbData = JSON.parse(payload);
+          state.turbidity = parseFloat(turbData.ntu);
+          state.turbidityPercent = parseFloat(turbData.percent);
+          state.turbStatus = turbData.status;
+          break;
+        
+        case MQTT_CONFIG.topics.status:
+          const statusData = JSON.parse(payload);
+          state.isOnline = statusData.status === 'online';
+          state.rssi = statusData.rssi || 0;
+          state.ip = statusData.ip || '--';
+          state.espOnline = state.isOnline;
+          break;
+      }
+      
+      state.lastUpdateTime = new Date();
+      state.messageCount++;
+      state.espOnline = true;
+      
+      if (DOM.espBadge) DOM.espBadge.className = 'badge active';
+      updateUI();
+      
+    } catch (error) {
+      console.error('❌ Error parsing MQTT payload:', error);
     }
   }
 
@@ -430,22 +285,6 @@
       updateParamBadge(DOM.turbBadge, state.turbidity, 0, 5, 'Jernih', 'Keruh', 'Sangat Keruh', true);
     }
     
-    if (state.turbStatus && DOM.turbStatus) {
-      // Update turbidity status text
-      const statusColors = {
-        'SANGAT JERNIH': '#2ecc71',
-        'JERNIH': '#2ecc71',
-        'CUKUP JERNIH': '#f39c12',
-        'AGAK KERUH': '#e67e22',
-        'KERUH': '#e74c3c'
-      };
-      const turbStatusEl = document.querySelector('.metric-status[data-metric="turbidity"]');
-      if (turbStatusEl) {
-        turbStatusEl.textContent = state.turbStatus;
-        turbStatusEl.style.color = statusColors[state.turbStatus] || '#2ecc71';
-      }
-    }
-    
     // 4. Update Filter Health
     if (state.health !== null && DOM.filterHealth) {
       const health = state.health;
@@ -469,10 +308,7 @@
     // 5. Update Filter Replacement Status
     updateFilterReplacement();
     
-    // 6. Update Charts
-    updateCharts(state.ph, state.turbidity);
-    
-    // 7. Update Online Status
+    // 6. Update Online Status
     if (DOM.espBadge) {
       DOM.espBadge.className = state.espOnline ? 'badge active' : 'badge inactive';
     }
@@ -496,51 +332,24 @@
 
   // ==================== FILTER REPLACEMENT ====================
   function updateFilterReplacement() {
-    const needReplace = state.filterNeedReplacement || false;
-    const filterScore = state.health || state.filterScore || 0;
+    const filterScore = state.health || state.filterScore || 100;
     
-    // Tentukan status berdasarkan skor
-    let statusText = state.filterStatus || '';
-    let statusColor = state.filterStatusColor || '';
-    let statusEmoji = state.filterStatusEmoji || '';
+    let statusText = 'NORMAL';
+    let statusColor = 'GREEN';
+    let statusEmoji = '🟢';
     
-    if (!statusText) {
-      if (needReplace || filterScore < 40) {
-        statusText = 'GANTI';
-        statusColor = 'RED';
-        statusEmoji = '🔴';
-      } else if (filterScore < 70) {
-        statusText = 'CEK';
-        statusColor = 'YELLOW';
-        statusEmoji = '🟡';
-      } else {
-        statusText = 'NORMAL';
-        statusColor = 'GREEN';
-        statusEmoji = '🟢';
-      }
+    if (filterScore < 40) {
+      statusText = 'GANTI';
+      statusColor = 'RED';
+      statusEmoji = '🔴';
+    } else if (filterScore < 70) {
+      statusText = 'CEK';
+      statusColor = 'YELLOW';
+      statusEmoji = '🟡';
     }
     
-    // Map color ke CSS
-    let ledClass = '';
-    let textClass = '';
-    
-    switch(statusColor.toUpperCase()) {
-      case 'GREEN':
-        ledClass = 'led-green';
-        textClass = 'text-filter-normal';
-        break;
-      case 'YELLOW':
-        ledClass = 'led-yellow';
-        textClass = 'text-filter-check';
-        break;
-      case 'RED':
-        ledClass = 'led-red';
-        textClass = 'text-filter-replace';
-        break;
-      default:
-        ledClass = 'led-green';
-        textClass = 'text-filter-normal';
-    }
+    let ledClass = statusColor === 'GREEN' ? 'led-green' : statusColor === 'YELLOW' ? 'led-yellow' : 'led-red';
+    let textClass = statusColor === 'GREEN' ? 'text-filter-normal' : statusColor === 'YELLOW' ? 'text-filter-check' : 'text-filter-replace';
     
     if (DOM.filterReplaceStatus) {
       DOM.filterReplaceStatus.innerHTML = `
@@ -552,13 +361,9 @@
     
     if (DOM.filterReplaceScore) {
       DOM.filterReplaceScore.textContent = filterScore.toFixed(0) + '%';
-      if (filterScore < 40) {
-        DOM.filterReplaceScore.className = 'text-sm font-mono text-[#FF2A54] font-bold';
-      } else if (filterScore < 70) {
-        DOM.filterReplaceScore.className = 'text-sm font-mono text-[#FFD700] font-bold';
-      } else {
-        DOM.filterReplaceScore.className = 'text-sm font-mono text-[#00FF66] font-bold';
-      }
+      DOM.filterReplaceScore.className = `text-sm font-mono font-bold ${
+        filterScore < 40 ? 'text-[#FF2A54]' : filterScore < 70 ? 'text-[#FFD700]' : 'text-[#00FF66]'
+      }`;
     }
     
     if (DOM.filterReplaceDays) {
@@ -591,29 +396,35 @@
       return;
     }
     
+    let className = '';
+    let label = '';
+    
     if (isLowerBetter) {
       if (value <= maxSafe) {
-        element.textContent = safeLabel;
-        element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#00FF66]/15 text-[#00FF66] border border-[#00FF66]/30 uppercase tracking-wider';
+        label = safeLabel;
+        className = 'bg-[#00FF66]/15 text-[#00FF66] border-[#00FF66]/30';
       } else if (value <= maxSafe * 2) {
-        element.textContent = warnLabel;
-        element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30 uppercase tracking-wider';
+        label = warnLabel;
+        className = 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
       } else {
-        element.textContent = dangerLabel;
-        element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FF2A54]/15 text-[#FF2A54] border border-[#FF2A54]/30 uppercase tracking-wider animate-pulse';
+        label = dangerLabel;
+        className = 'bg-[#FF2A54]/15 text-[#FF2A54] border-[#FF2A54]/30 animate-pulse';
       }
     } else {
       if (value >= minSafe && value <= maxSafe) {
-        element.textContent = safeLabel;
-        element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#00FF66]/15 text-[#00FF66] border border-[#00FF66]/30 uppercase tracking-wider';
+        label = safeLabel;
+        className = 'bg-[#00FF66]/15 text-[#00FF66] border-[#00FF66]/30';
       } else if (value < minSafe - 1 || value > maxSafe + 1) {
-        element.textContent = dangerLabel;
-        element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FF2A54]/15 text-[#FF2A54] border border-[#FF2A54]/30 uppercase tracking-wider animate-pulse';
+        label = dangerLabel;
+        className = 'bg-[#FF2A54]/15 text-[#FF2A54] border-[#FF2A54]/30 animate-pulse';
       } else {
-        element.textContent = warnLabel;
-        element.className = 'inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30 uppercase tracking-wider';
+        label = warnLabel;
+        className = 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
       }
     }
+    
+    element.textContent = label;
+    element.className = `inline-block px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${className}`;
   }
 
   // ==================== AUTO-RECONNECT ====================
@@ -627,13 +438,6 @@
       }
     }
   }, 5000);
-
-  setInterval(() => {
-    if (!state.mqttConnected && client) {
-      console.log('🔄 Auto-reconnect triggered...');
-      client.reconnect();
-    }
-  }, 30000);
 
   // ==================== SIDEBAR NAVIGATION ====================
   const sidebar = $('#sidebar');
@@ -693,7 +497,7 @@
         showToast('✅ MQTT terhubung', 'success');
       } else {
         showToast('⚠️ MQTT terputus, mencoba reconnect...', 'warning');
-        if (client) client.reconnect();
+        initMQTT();
       }
     }, 800);
   });
@@ -714,7 +518,6 @@
     console.log('   - ulum/status (ESP32 status)');
     console.log('ℹ️ Ketik "debug" di console untuk akses state');
     
-    initCharts();
     initMQTT();
   });
 
@@ -722,7 +525,8 @@
   window.debug = {
     state: state,
     client: client,
-    MQTT_CONFIG: MQTT_CONFIG
+    MQTT_CONFIG: MQTT_CONFIG,
+    initMQTT: initMQTT
   };
 
   console.log('🔧 Debug: Type "debug" in console to see state');
