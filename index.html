@@ -59,20 +59,23 @@
         <div class="topbar-title">
           <button class="icon-button mobile-only" id="open-menu" aria-label="Buka menu">☰</button>
           <div>
-            <span class="eyebrow">Rabu, 13 Agustus 2026</span>
+            <span class="eyebrow" id="currentDate">Rabu, 13 Agustus 2026</span>
             <h1>Ringkasan Monitoring</h1>
           </div>
         </div>
 
         <div class="connection-group">
-          <span class="live-pill">
-            <i></i> Data langsung · 10 detik lalu
+          <span class="live-pill" id="livePill">
+            <i></i> ⏳ Menunggu data...
           </span>
-          <span class="connection wifi" title="Wi-Fi terhubung">
+          <span class="connection wifi" id="wifiIndicator" title="Wi-Fi terhubung">
             <span>⌁</span><b>Wi-Fi</b><i></i>
           </span>
-          <span class="connection mqtt" title="Broker MQTT terhubung">
+          <span class="connection mqtt" id="mqttIndicator" title="Broker MQTT terhubung">
             <span>◌</span><b>MQTT</b><i></i>
+          </span>
+          <span class="connection esp" id="espIndicator" title="ESP32 Online">
+            <span>⌁</span><b>ESP32</b><i></i>
           </span>
           <button class="notification" aria-label="Notifikasi">◉</button>
         </div>
@@ -95,20 +98,20 @@
             <div class="card-title">
               <span class="metric-icon teal">≈</span>
               <span>Kualitas Air</span>
-              <span class="status good">● Baik</span>
+              <span class="status good" id="qualityStatus">● Baik</span>
             </div>
-            <strong class="big-value">Optimal</strong>
-            <span class="muted">Semua parameter dalam batas aman</span>
+            <strong class="big-value" id="qualityValue">Optimal</strong>
+            <span class="muted" id="qualityDesc">Semua parameter dalam batas aman</span>
           </article>
 
           <article class="card summary-card">
             <div class="card-title">
               <span class="metric-icon blue">⌁</span>
               <span>Sensor Online</span>
-              <span class="online-dot">●</span>
+              <span class="online-dot" id="onlineDot">●</span>
             </div>
-            <strong class="big-value">2 <small>/ 2</small></strong>
-            <span class="muted">Sinkronisasi terakhir 10 detik lalu</span>
+            <strong class="big-value" id="sensorValue">2 <small>/ 2</small></strong>
+            <span class="muted" id="sensorMuted">Sinkronisasi terakhir 10 detik lalu</span>
           </article>
 
           <article class="card summary-card">
@@ -143,9 +146,9 @@
                 <div class="trend-head">
                   <div>
                     <span class="muted">Tingkat pH</span>
-                    <strong>7.42 <em>+0.03%</em></strong>
+                    <strong id="phValue">7.42 <em>+0.03%</em></strong>
                   </div>
-                  <span class="safe teal-bg">Aman 6.5–8.5</span>
+                  <span class="safe teal-bg" id="phStatus">Aman 6.5–8.5</span>
                 </div>
                 <div class="chart ph-chart" role="img" aria-label="Grafik tren pH">
                   <svg viewBox="0 0 520 130" preserveAspectRatio="none">
@@ -166,9 +169,9 @@
                 <div class="trend-head">
                   <div>
                     <span class="muted">Kekeruhan</span>
-                    <strong>1.8 <small>NTU</small></strong>
+                    <strong id="turbidityValue">1.8 <small>NTU</small></strong>
                   </div>
-                  <span class="safe blue-bg">Aman &lt; 5 NTU</span>
+                  <span class="safe blue-bg" id="turbidityStatus">Aman &lt; 5 NTU</span>
                 </div>
                 <div class="chart turb-chart" role="img" aria-label="Grafik tren kekeruhan">
                   <svg viewBox="0 0 520 130" preserveAspectRatio="none">
@@ -197,9 +200,9 @@
             <div class="health-meter">
               <div>
                 <span>Kekuatan Sinyal</span>
-                <strong>Sangat Baik</strong>
+                <strong id="signalStrength">Sangat Baik</strong>
               </div>
-              <div class="meter"><i></i></div>
+              <div class="meter"><i id="signalMeter"></i></div>
             </div>
 
             <div class="health-meter">
@@ -224,8 +227,8 @@
             <button class="text-button" id="view-alerts">Lihat semua peringatan →</button>
           </div>
 
-          <div class="alert-list">
-            <div class="alert-row">
+          <div class="alert-list" id="alertList">
+            <div class="alert-row" data-alert="turbidity">
               <span class="alert-icon amber">!</span>
               <div>
                 <strong>Kekeruhan meningkat terdeteksi</strong>
@@ -234,7 +237,7 @@
               <span class="status warn">Dipantau</span>
             </div>
 
-            <div class="alert-row">
+            <div class="alert-row" data-alert="calibration">
               <span class="alert-icon blue">⌁</span>
               <div>
                 <strong>Pengingat kalibrasi</strong>
@@ -266,13 +269,13 @@
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="tableBody">
                 <tr>
-                  <td>14:30</td>
-                  <td>7.42</td>
-                  <td>1.8 <span>NTU</span></td>
-                  <td>26.4°C</td>
-                  <td><b class="status good">Normal</b></td>
+                  <td id="row1Time">14:30</td>
+                  <td id="row1Ph">7.42</td>
+                  <td id="row1Turb">1.8 <span>NTU</span></td>
+                  <td id="row1Temp">26.4°C</td>
+                  <td id="row1Status"><b class="status good">Normal</b></td>
                 </tr>
                 <tr>
                   <td>14:15</td>
@@ -316,8 +319,6 @@
   <!-- ====== SCRIPTS ====== -->
   <!-- Paho MQTT Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- App Script -->
   <script src="js/app.js"></script>
 </body>
